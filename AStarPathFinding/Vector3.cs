@@ -23,7 +23,9 @@ namespace UnityEngine
         
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t)
         {
-            t = Mathf.Clamp01(t);
+            if (t > 1) t = 1;
+            else if (t < 0) t = 0;
+
             return new Vector3(
                 a.x + (b.x - a.x) * t,
                 a.y + (b.y - a.y) * t,
