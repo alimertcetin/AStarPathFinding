@@ -1,6 +1,4 @@
-﻿using UnityEngine;
-
-namespace AStarPathFinding
+﻿namespace AStarPathFinding
 {
     public class Node
     {
