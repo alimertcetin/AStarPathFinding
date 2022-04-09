@@ -1,84 +1,40 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace AStarPathFinding
 {
     public class PathFinder
     {
-        public Transform pathFollower
-        {
-            get => startPoint;
-            set
-            {
-                startPoint = value;
-                UpdatePath();
-            }
-        }
+        public List<Node> finalPath;
 
-        public Transform target
-        {
-            get => endPoint;
-            set
-            {
-                endPoint = value;
-                UpdatePath();
-            }
-        }
-
-        public List<Node> finalPath { get; private set; }
-
-        public Vector3 extraCost;
+        public Vec3 extraCost;
 
         PathGrid grid;
-        public PathGrid pathGrid
+        public PathGrid pathGrid => grid;
+
+        public PathFinder(PathGrid grid)
         {
-            get
-            {
-                return grid;
-            }
-
-            private set
-            {
-                grid = value;
-                UpdatePath();
-            }
-        }
-
-        Transform startPoint;
-        Transform endPoint;
-
-        public PathFinder(Transform pathFollower, Transform target, PathGrid grid)
-        {
-            this.startPoint = pathFollower;
-            this.endPoint = target;
             this.grid = grid;
         }
 
-        public PathFinder(Transform pathFollower, Transform target, PathGrid grid, Vector3 extraCost)
+        public PathFinder(PathGrid grid, Vec3 extraCost)
         {
-            this.startPoint = pathFollower;
-            this.endPoint = target;
             this.extraCost = extraCost;
             this.grid = grid;
-
-#if UNITY_EDITOR
-            Debug.Assert(this.extraCost.sqrMagnitude != Mathf.Infinity, "Extra cost of node returned infinity. this is not allowed");
-            if (this.extraCost.sqrMagnitude == Mathf.Infinity) this.extraCost = Vector3.zero; // to not break GetManhattenDistance() calculation
-#endif
+            if (this.extraCost.sqrMagnitude == Single.PositiveInfinity)
+            {
+                throw new InvalidOperationException("Extra cost of node returned infinity. this is not allowed");
+            }
         }
 
-        public void UpdatePath()
-        {
-            FindPath(pathFollower.position, target.position);
-        }
-
-        public Vector3 GetClosestPosition(Vector3 currentPosition)
+        public Vec3 GetClosestPosition(Vec3 currentPosition)
         {
             if (finalPath == null) return currentPosition;
 
             return grid.NodeFromWorldPosition(grid.GetClosest(finalPath, currentPosition).worldPosition).worldPosition;
         }
 
-        public Vector3 GetNextPos(Vector3 currentPosition)
+        public Vec3 GetNextPos(Vec3 currentPosition)
         {
             if (finalPath == null || finalPath.Count == 0) return currentPosition;
 
@@ -87,7 +43,7 @@ namespace AStarPathFinding
             return nodeA.worldPosition == currentPosition ? currentPosition : nodeA.worldPosition;
         }
 
-        void FindPath(Vector3 startPos, Vector3 targetPos)
+        public void FindPath(Vec3 startPos, Vec3 targetPos)
         {
             Node startNode = grid.NodeFromWorldPosition(startPos);
             Node targetNode = grid.NodeFromWorldPosition(targetPos);
@@ -159,16 +115,16 @@ namespace AStarPathFinding
             return finalPath;
         }
 
-        void GetManhattenDistance(Node nodeA, Node nodeB, Vector3 targetPos)
+        void GetManhattenDistance(Node nodeA, Node nodeB, Vec3 targetPos)
         {
-            var distanceX = (nodeA.gridX - nodeB.gridX);
-            var distanceY = (nodeA.gridY - nodeB.gridY);
-            var distanceZ = (nodeA.gridZ - nodeB.gridZ);
+            var distVec = nodeA.worldPosition - nodeB.worldPosition;
 
-            var distVec = new Vector3(distanceX, distanceY, distanceZ);
             distVec += extraCost;
 
-            float gCost = (nodeA.gridX - targetPos.x) + (nodeA.gridY - targetPos.y) + (nodeA.gridZ - targetPos.z);
+            float gCost = (nodeA.worldPosition.x - targetPos.x) + 
+                (nodeA.worldPosition.y - targetPos.y) + 
+                (nodeA.worldPosition.z - targetPos.z);
+
             float hCost = nodeB.hCost + distVec.sqrMagnitude;
             nodeA.SetCost(gCost, hCost);
 

@@ -1,8 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
+﻿using System;
+using System.Collections.Generic;
 
 namespace AStarPathFinding
 {
@@ -29,7 +26,7 @@ namespace AStarPathFinding
                 CreateGrid();
             }
         }
-        public Vector3 GridCenter
+        public Vec3 GridCenter
         {
             get => gridCenter;
             set
@@ -38,24 +35,7 @@ namespace AStarPathFinding
                 CreateGrid();
             }
         }
-        public LayerMask LayerToAvoid
-        {
-            get => layerToAvoid;
-            set
-            {
-                layerToAvoid = value;
-                CreateGrid();
-            }
-        }
-        public LayerMask LayerToIgnore
-        {
-            get => layerToIgnore;
-            set
-            {
-                layerToIgnore = value;
-                CreateGrid();
-            }
-        }
+
         public float NodeRadius
         {
             get => nodeRadius;
@@ -66,120 +46,96 @@ namespace AStarPathFinding
             }
         }
 
-        public List<Node> ObstacleNodes
-        {
-            get => obstacleNodes;
-        }
-        public List<Node> IgnoredLayerNodes
-        {
-            get => ignoredLayerNodes;
-        }
-
         int gridSizeX;
         int gridSizeZ;
-        Vector3 gridCenter;
-        LayerMask layerToAvoid;
-        LayerMask layerToIgnore;
+        Vec3 gridCenter;
         float nodeRadius;
-        List<Node> obstacleNodes = new List<Node>();
-        List<Node> ignoredLayerNodes = new List<Node>();
 
-        public PathGrid(Vector3 gridCenterPos, float gridWorldSizeX, float gridWorldSizeZ, LayerMask obstacleLayer, LayerMask ignoreLayer,
-            float nodeRadius, bool makeNeighborObstacles)
+        public PathGrid(float gridCenterX, float gridCenterY, float gridCenterZ, 
+            float gridSizeX, float gridSizeZ, 
+            float nodeRadius)
         {
-            this.gridSizeX = (int)gridWorldSizeX;
-            this.gridSizeZ = (int)gridWorldSizeZ;
-            this.gridCenter = gridCenterPos;
-            this.layerToAvoid = obstacleLayer;
-            this.layerToIgnore = ignoreLayer;
+            this.gridCenter = new Vec3(gridCenterX, gridCenterY, gridCenterZ);
+            this.gridSizeX = (int)gridSizeX;
+            this.gridSizeZ = (int)gridSizeZ;
             this.nodeRadius = nodeRadius;
 
             CreateGrid();
-
-            if (makeNeighborObstacles)
-            {
-                MakeNeighborObstacle();
-            }
         }
 
-        void CreateGrid()
+        public void CreateGrid()
         {
-            obstacleNodes.Clear();
             nodes = new Node[gridSizeX, gridSizeZ];
-            Vector3 bottomLeft = gridCenter - Vector3.right * gridSizeX / 2 - Vector3.forward * gridSizeZ / 2;
+            Vec3 bottomLeft = gridCenter - Vec3.right * gridSizeX / 2 - Vec3.forward * gridSizeZ / 2;
             for (int z = 0; z < gridSizeZ; z++)
             {
                 for (int x = 0; x < gridSizeX; x++)
                 {
-                    Vector3 worldPoint = bottomLeft + Vector3.right * (x * nodeDiameter + nodeRadius) + Vector3.forward * (z * nodeDiameter + nodeRadius);
-                    bool isInsideIgnoredLayer = Physics.CheckSphere(worldPoint, nodeRadius, layerToIgnore);
-                    bool isObstacle = Physics.CheckSphere(worldPoint, nodeRadius, layerToAvoid);
-                    Node newNode = new Node(isObstacle, isInsideIgnoredLayer,
-                        worldPoint, new Vector3(x, worldPoint.y, z), nodeRadius);
-                    nodes[x, z] = newNode;
-
-                    if (isObstacle) obstacleNodes.Add(newNode);
-                    if (isInsideIgnoredLayer) ignoredLayerNodes.Add(newNode);
+                    Vec3 worldPoint = bottomLeft + Vec3.right * (x * nodeDiameter + nodeRadius) + Vec3.forward * (z * nodeDiameter + nodeRadius);
+                    nodes[x, z] = new Node(worldPoint, new Vec3(x, worldPoint.y, z), nodeRadius);
                 }
             }
         }
 
-        void MakeNeighborObstacle()
-        {
-            for (int i = 0; i < obstacleNodes.Count; i++)
-            {
-                List<Node> neighbors = GetNeighborNodes(obstacleNodes[i]);
-                for (int j = 0; j < neighbors.Count; j++)
-                {
-                    neighbors[j].isObstacle = true;
-                }
-            }
-        }
-
-        public void UpdateNode(Vector3 previousPos, Vector3 nextPos)
+        public void UpdateNode(Vec3 previousPos, Vec3 nextPos)
         {
             Node node = NodeFromWorldPosition(previousPos);
             node.SetWorldPosition(nextPos);
         }
 
-        public void UpdateNode(Node node, Vector3 nextPos)
+        public void UpdateNode(Node node, Vec3 nextPos)
         {
             node.SetWorldPosition(nextPos);
         }
 
-        public Node NodeFromWorldPosition(Vector3 startPos)
+        public Node NodeFromWorldPosition(Vec3 currentPos)
         {
-            float xPoint = ((startPos.x + gridSizeX / 2) / gridSizeX);
-            float zPoint = ((startPos.z + gridSizeZ / 2) / gridSizeZ);
+            float xPoint = ((currentPos.x + gridSizeX / 2) / gridSizeX);
+            float zPoint = ((currentPos.z + gridSizeZ / 2) / gridSizeZ);
 
-            xPoint = Mathf.Clamp01(xPoint);
-            zPoint = Mathf.Clamp01(zPoint);
+            if (xPoint > 1)
+            {
+                xPoint = 1;
+            }
+            else if(xPoint < 0)
+            {
+                xPoint = 0;
+            }
 
-            int x = Mathf.RoundToInt((gridSizeX - 1) * xPoint);
-            int z = Mathf.RoundToInt((gridSizeZ - 1) * zPoint);
+            if (zPoint > 1)
+            {
+                zPoint = 1;
+            }
+            else if(zPoint < 0)
+            {
+                zPoint = 0;
+            }
+
+            int x = (int)Math.Round((gridSizeX - 1) * xPoint);
+            int z = (int)Math.Round((gridSizeZ - 1) * zPoint);
             return nodes[x, z];
         }
 
         public List<Node> GetNeighborNodes(Node current)
         {
             List<Node> neighbors = new List<Node>();
-            Node right = GetNeighbor(current, Vector3.right);
-            Node left = GetNeighbor(current, Vector3.left);
-            Node up = GetNeighbor(current, Vector3.up);
-            Node down = GetNeighbor(current, Vector3.down);
+            Node right = GetNeighbor(current, Vec3.right);
+            Node left = GetNeighbor(current, Vec3.left);
+            Node forward = GetNeighbor(current, Vec3.forward);
+            Node back = GetNeighbor(current, Vec3.back);
 
             if (right != null) neighbors.Add(right);
             if (left != null) neighbors.Add(left);
-            if (up != null) neighbors.Add(up);
-            if (down != null) neighbors.Add(down);
+            if (forward != null) neighbors.Add(forward);
+            if (back != null) neighbors.Add(back);
 
             return neighbors;
         }
 
-        public Node GetNeighbor(Node current, Vector3 direction)
+        public Node GetNeighbor(Node current, Vec3 direction)
         {
-            int xCheck = (int)current.gridX + (int)direction.x;
-            int zCheck = (int)current.gridZ + (int)direction.y;
+            int xCheck = (int)current.gridPos.x + (int)direction.x;
+            int zCheck = (int)current.gridPos.z + (int)direction.z;
 
             if (xCheck >= 0 && xCheck < gridSizeX && zCheck >= 0 && zCheck < gridSizeZ)
             {
@@ -188,20 +144,17 @@ namespace AStarPathFinding
             return null;
         }
 
-        public Node GetClosest(List<Node> nodes, Vector3 currentPosition)
+        public Node GetClosest(List<Node> nodes, Vec3 currentPosition)
         {
-            List<Node> newNodeList = new List<Node>(nodes.Count);
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                newNodeList.Add(nodes[i]);
-            }
+            List<Node> newNodeList = new List<Node>(nodes);
             SortByDistance(newNodeList);
+            
             Node current = newNodeList[0];
-            float diff = Vector3.Distance(currentPosition, current.worldPosition);
+            float diff = Vec3.Distance(currentPosition, current.worldPosition);
             for (int i = 0; i < newNodeList.Count; i++)
             {
                 Node newNode = newNodeList[i];
-                float newDiff = Vector3.Distance(newNode.worldPosition, currentPosition);
+                float newDiff = Vec3.Distance(newNode.worldPosition, currentPosition);
                 if (newDiff < diff)
                 {
                     diff = newDiff;
@@ -212,7 +165,7 @@ namespace AStarPathFinding
             return current;
         }
 
-        public Node GetClosestNext(List<Node> nodes, Vector3 currentPosition)
+        public Node GetClosestNext(List<Node> nodes, Vec3 currentPosition)
         {
             Node closestNode = GetClosest(nodes, currentPosition);
             int indexOfNode = nodes.IndexOf(closestNode);
@@ -234,9 +187,9 @@ namespace AStarPathFinding
                 var current = i;
                 for (var j = i + 1; j < arr.Count; j++)
                 {
-                    if (Vector3.Distance(arr[current].worldPosition, arr[j].worldPosition) < distance)
+                    if (Vec3.Distance(arr[current].worldPosition, arr[j].worldPosition) < distance)
                     {
-                        distance = Vector3.Distance(arr[current].worldPosition, arr[j].worldPosition);
+                        distance = Vec3.Distance(arr[current].worldPosition, arr[j].worldPosition);
                         current = j;
                     }
                 }
@@ -249,28 +202,28 @@ namespace AStarPathFinding
             }
         }
 
-        //public void SortByDistance(List<Vector3> arr)
-        //{
-        //    float distance = float.MaxValue;
-        //    for (var i = 0; i < arr.Count; i++)
-        //    {
-        //        var current = i;
-        //        for (var j = i + 1; j < arr.Count; j++)
-        //        {
-        //            if (Vector3.Distance(arr[current], arr[j]) < distance)
-        //            {
-        //                distance = Vector3.Distance(arr[current], arr[j]);
-        //                current = j;
-        //            }
-        //        }
-        //        if (current != i)
-        //        {
-        //            var lowerValue = arr[current];
-        //            arr[current] = arr[i];
-        //            arr[i] = lowerValue;
-        //        }
-        //    }
-        //}
+        public void SortByDistance(List<Vec3> arr)
+        {
+            float distance = float.MaxValue;
+            for (var i = 0; i < arr.Count; i++)
+            {
+                var current = i;
+                for (var j = i + 1; j < arr.Count; j++)
+                {
+                    if (Vec3.Distance(arr[current], arr[j]) < distance)
+                    {
+                        distance = Vec3.Distance(arr[current], arr[j]);
+                        current = j;
+                    }
+                }
+                if (current != i)
+                {
+                    var lowerValue = arr[current];
+                    arr[current] = arr[i];
+                    arr[i] = lowerValue;
+                }
+            }
+        }
 
 
     }

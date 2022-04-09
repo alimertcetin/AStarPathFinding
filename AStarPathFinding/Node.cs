@@ -4,12 +4,10 @@ namespace AStarPathFinding
 {
     public class Node
     {
-        public int index => (int)gridX + (int)gridZ;
-        public float gridX { get; private set; }
-        public float gridY { get; private set; }
-        public float gridZ { get; private set; }
-        public Vector3 worldPosition { get; private set; }
-        public Vector3 forward { get; private set; }
+        public int index => (int)gridPos.x + (int)gridPos.z;
+        public Vec3 gridPos { get; private set; }
+        public Vec3 worldPosition { get; private set; }
+        public Vec3 forward { get; private set; }
 
         public float gCost { get; private set; }
         public float hCost { get; private set; }
@@ -18,18 +16,13 @@ namespace AStarPathFinding
         public Node parent { get; private set; }
         public bool isObstacle;
         public bool dontIncludeToPath;
-        public bool isModified;
-        public bool isInsideIgnoredLayer;
+        public bool ignoreable;
         public float radius;
 
-        public Node(bool isObstacle, bool isInsideIgnoredLayer, Vector3 worldPosition, Vector3 gridPos, float radius)
+        public Node(Vec3 worldPosition, Vec3 gridPos, float radius)
         {
-            this.isObstacle = isObstacle;
-            this.isInsideIgnoredLayer = isInsideIgnoredLayer;
             this.worldPosition = worldPosition;
-            this.gridX = gridPos.x;
-            this.gridY = gridPos.y;
-            this.gridZ = gridPos.z;
+            this.gridPos = gridPos;
             this.radius = radius;
         }
 
@@ -39,10 +32,10 @@ namespace AStarPathFinding
             this.hCost = hCost;
         }
 
-        public void SetWorldPosition(Vector3 newPos)
+        public void SetWorldPosition(Vec3 newPos)
         {
             this.worldPosition = newPos;
-            this.gridY = newPos.y;
+            this.gridPos = new Vec3(gridPos.x, newPos.y, gridPos.z);
         }
 
         public void SetParent(Node parentNode)
@@ -50,8 +43,6 @@ namespace AStarPathFinding
             parent = parentNode;
             this.forward = (parent.worldPosition - this.worldPosition).normalized;
         }
-
-
 
     }
 
